@@ -48,9 +48,8 @@ export default function TBridgeSmokePage() {
     setLogs((prev) => [{ time, msg }, ...prev].slice(0, 50));
   }, []);
 
-  // 1. Реагируем на событие моста напрямую, без useEffect
+
   const handleStatusChange = useCallback((status: ConnectionStatus) => {
-    // Type narrowing: если status === 'connected', TS знает, что account существует
     if (status.status === 'connected') {
       const addr = status.account.address;
       const shortAddr = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -58,7 +57,6 @@ export default function TBridgeSmokePage() {
     }
   }, [push]);
 
-  // 2. Инициализация хука с колбэком
   const {
     status,
     isConnected,
@@ -71,19 +69,15 @@ export default function TBridgeSmokePage() {
     onStatusChange: handleStatusChange,
   });
 
-  // 3. Синхронное обновление без useEffect (React 19 friendly)
   const updateConfig = <K extends keyof UseTBridgeOptions>(key: K, value: UseTBridgeOptions[K]) => {
     if (config[key] === value) return;
 
     if (key === 'network') {
       const newNetwork = value as Network;
-      // Сбрасываем адрес на дефолтный для новой сети
       setRecipientAddress(DEFAULT_ADDRESSES[newNetwork]);
-      // Логируем переключение
       const time = new Date().toISOString().slice(11, 19);
       setLogs((l) => [{ time, msg: `switching to ${newNetwork}` }, ...l].slice(0, 50));
     }
-
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -132,7 +126,6 @@ export default function TBridgeSmokePage() {
       <style dangerouslySetInnerHTML={{ __html: gramDarkCSS }} />
       <div style={styles.container}>
         
-        {/* Header & Links */}
         <div style={styles.header}>
           <h1 style={styles.title}>
             <span style={styles.logo}>⚡</span>
@@ -160,7 +153,6 @@ export default function TBridgeSmokePage() {
           </div>
         </div>
 
-        {/* Configuration panel */}
         <div className="tbridge-card">
           <div style={styles.cardHeader}>
             <span style={styles.cardTitle}>Configuration</span>
@@ -219,7 +211,6 @@ export default function TBridgeSmokePage() {
           </div>
         </div>
 
-        {/* Actions & Address Input */}
         <div style={styles.actionsContainer}>
           {!isConnected && !isConnecting && (
             <button
@@ -276,7 +267,6 @@ export default function TBridgeSmokePage() {
           )}
         </div>
 
-        {/* Logs */}
         <div className="tbridge-card tbridge-card--logs">
           <div style={styles.logsHeader}>
             <span style={styles.logsTitle}>Activity Log</span>
@@ -314,7 +304,7 @@ export default function TBridgeSmokePage() {
 }
 
 // ============================================================================
-// GRAM / GetGems Dark Theme CSS (Compact & Modern)
+// Dark Theme CSS
 // ============================================================================
 const gramDarkCSS = `
 .tbridge-gram-theme {
