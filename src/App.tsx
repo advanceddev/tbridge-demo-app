@@ -102,7 +102,7 @@ export default function TBridgeSmokePage() {
         openLink: (link, wallet) => {
           openWalletLink(link, {
             deepLink: wallet.deepLink,
-            target: '_self',
+            target: '_blank',
           });
         },
       });
