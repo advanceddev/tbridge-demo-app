@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createTBridge,
   connectWithUi,
-  NaclCryptoProvider,
+  openWalletLink,
   type TBridge,
   type ConnectionStatus,
 } from 'tbridge';
@@ -51,7 +51,6 @@ export default function TBridgeSmokePage() {
   useEffect(() => {
     const bridge = createTBridge({
       manifestUrl: manifestURL,
-      crypto: new NaclCryptoProvider(),
       network: config.network,
       debug: true,
       allowInsecureManifest: import.meta.env.DEV,
@@ -100,6 +99,12 @@ export default function TBridgeSmokePage() {
       await connectWithUi(bridge, {
         locale: config.locale,
         theme: config.theme,
+        openLink: (link, wallet) => {
+          openWalletLink(link, {
+            deepLink: wallet.deepLink,
+            target: '_self',
+          });
+        },
       });
       push('✓ connected');
     } catch (e) {
