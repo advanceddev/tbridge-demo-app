@@ -1,11 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  createTBridge,
-  connectWithUi,
-  openWalletLink,
-  type TBridge,
-  type ConnectionStatus,
-} from 'tbridge';
+import { useCallback, useState } from 'react';
+import { useTBridge, type UseTBridgeOptions } from './hooks/useTBridge';
+import { type ConnectionStatus } from 'tbridge';
 
 const manifestURL = 'https://advanceddev.github.io/tbridge-demo-app/tbridge-manifest.json';
 
@@ -13,16 +8,13 @@ type Locale = 'en' | 'ru';
 type Theme = 'dark' | 'light';
 type Network = 'mainnet' | 'testnet';
 
-interface Config {
-  locale: Locale;
-  theme: Theme;
-  network: Network;
-}
-
-const DEFAULT_CONFIG: Config = {
+const DEFAULT_CONFIG: UseTBridgeOptions = {
+  manifestUrl: manifestURL,
+  network: 'mainnet',
   locale: 'en',
   theme: 'dark',
-  network: 'mainnet',
+  debug: import.meta.env.DEV,
+  allowInsecureManifest: import.meta.env.DEV,
 };
 
 const LOCALE_LABELS: Record<Locale, string> = {
@@ -35,7 +27,6 @@ const THEME_LABELS: Record<Theme, string> = {
   light: 'Light',
 };
 
-// Валидация TON адреса (bounceable / non-bounceable, 48 символов)
 const isValidTonAddress = (address: string): boolean => {
   return /^(0|[UEkQ])[a-zA-Z0-9_-]{47}$/.test(address.trim());
 };
@@ -46,116 +37,80 @@ const DEFAULT_ADDRESSES: Record<Network, string> = {
 };
 
 export default function TBridgeSmokePage() {
-  const bridgeRef = useRef<TBridge | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>({ status: 'disconnected' });
   const [logs, setLogs] = useState<Array<{ time: string; msg: string }>>([]);
-  const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
-  const [recipientAddress, setRecipientAddress] = useState<string>(DEFAULT_ADDRESSES[DEFAULT_CONFIG.network]);
+  const [config, setConfig] = useState<UseTBridgeOptions>(DEFAULT_CONFIG);
+  const [recipientAddress, setRecipientAddress] = useState<string>(
+    DEFAULT_ADDRESSES[DEFAULT_CONFIG.network as Network]
+  );
 
   const push = useCallback((msg: string) => {
     const time = new Date().toISOString().slice(11, 19);
     setLogs((prev) => [{ time, msg }, ...prev].slice(0, 50));
   }, []);
 
-  // Синхронизация адреса при смене сети
-  useEffect(() => {
-    setRecipientAddress(DEFAULT_ADDRESSES[config.network]);
-  }, [config.network]);
-
-  useEffect(() => {
-    const bridge = createTBridge({
-      manifestUrl: manifestURL,
-      network: config.network,
-      debug: true,
-      allowInsecureManifest: import.meta.env.DEV,
-      locale: config.locale,
-      theme: config.theme,
-    });
-    bridgeRef.current = bridge;
-
-    const offStatus = bridge.on('statusChange', (s) => {
-      setStatus(s);
-      push(`status → ${s.status}`);
-    });
-
-    const offHealth = bridge.on('bridgeHealth', (h) => {
-      push(`health → ${h}`);
-    });
-
-    push(`bridge init (${config.network})`);
-
-    void bridge.restoreConnection().then((ok) => {
-      push(ok ? '✓ session restored' : 'no saved session');
-    });
-
-    return () => {
-      offStatus();
-      offHealth();
-      bridge.destroy();
-      bridgeRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.network]);
-
-  useEffect(() => {
-    const bridge = bridgeRef.current;
-    if (!bridge) return;
-    bridge.setLocale(config.locale);
-    bridge.setTheme(config.theme);
-  }, [config.locale, config.theme]);
-
-  const connect = useCallback(async () => {
-    const bridge = bridgeRef.current;
-    if (!bridge) return;
-
-    try {
-      push('connecting...');
-      await connectWithUi(bridge, {
-        locale: config.locale,
-        theme: config.theme,
-        openLink: (link, wallet) => {
-          openWalletLink(link, {
-            deepLink: wallet.deepLink,
-            target: '_self',
-          });
-        },
-      });
-      
-      // Адрес придет через statusChange event, но на всякий случай проверим здесь
-      push('✓ connecting...');
-    } catch (e) {
-      push(`✗ ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }, [push, config.locale, config.theme]);
-
-  // Отдельный эффект для логирования успешного подключения с адресом
-  useEffect(() => {
-    if (status.status === 'connected' && status.account?.address) {
+  // 1. Реагируем на событие моста напрямую, без useEffect
+  const handleStatusChange = useCallback((status: ConnectionStatus) => {
+    // Type narrowing: если status === 'connected', TS знает, что account существует
+    if (status.status === 'connected') {
       const addr = status.account.address;
       const shortAddr = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
       push(`✓ connected wallet: ${shortAddr}`);
     }
-  }, [status, push]);
+  }, [push]);
+
+  // 2. Инициализация хука с колбэком
+  const {
+    status,
+    isConnected,
+    isConnecting,
+    connect: hookConnect,
+    disconnect: hookDisconnect,
+    sendTransaction: hookSendTransaction,
+  } = useTBridge({
+    ...config,
+    onStatusChange: handleStatusChange,
+  });
+
+  // 3. Синхронное обновление без useEffect (React 19 friendly)
+  const updateConfig = <K extends keyof UseTBridgeOptions>(key: K, value: UseTBridgeOptions[K]) => {
+    if (config[key] === value) return;
+
+    if (key === 'network') {
+      const newNetwork = value as Network;
+      // Сбрасываем адрес на дефолтный для новой сети
+      setRecipientAddress(DEFAULT_ADDRESSES[newNetwork]);
+      // Логируем переключение
+      const time = new Date().toISOString().slice(11, 19);
+      setLogs((l) => [{ time, msg: `switching to ${newNetwork}` }, ...l].slice(0, 50));
+    }
+
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const connect = useCallback(async () => {
+    try {
+      push('connecting...');
+      await hookConnect();
+    } catch (e) {
+      push(`✗ ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [hookConnect, push]);
 
   const disconnect = useCallback(async () => {
-    const bridge = bridgeRef.current;
-    if (!bridge) return;
-
     try {
-      await bridge.disconnect();
+      await hookDisconnect();
       push('✓ disconnected');
     } catch (e) {
       push(`✗ ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [push]);
+  }, [hookDisconnect, push]);
 
   const sendTransaction = useCallback(async () => {
-    const bridge = bridgeRef.current;
-    if (!bridge || !isValidTonAddress(recipientAddress)) return;
+    if (!isValidTonAddress(recipientAddress)) return;
 
     try {
-      push(`sending 1 GRAM to ${recipientAddress.slice(0, 6)}...`);
-      await bridge.sendTransaction({
+      push(`sending 0.1 GRAM to ${recipientAddress.slice(0, 6)}...`);
+      await hookSendTransaction({
         validUntil: Date.now() + 60_000,
         messages: [
           {
@@ -168,25 +123,9 @@ export default function TBridgeSmokePage() {
     } catch (e) {
       push(`✗ ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [push, recipientAddress]);
+  }, [hookSendTransaction, recipientAddress, push]);
 
-  const isConnected = status.status === 'connected';
-  const isConnecting = status.status === 'connecting';
   const isAddressValid = isValidTonAddress(recipientAddress);
-
-  const updateConfig = <K extends keyof Config>(key: K, value: Config[K]) => {
-    setConfig((prev) => {
-      if (prev[key] === value) return prev;
-      if (key === 'network') {
-        setLogs((l) => [
-          { time: new Date().toISOString().slice(11, 19), msg: `switching to ${value}` },
-          ...l,
-        ]);
-        setStatus({ status: 'disconnected' });
-      }
-      return { ...prev, [key]: value };
-    });
-  };
 
   return (
     <div className="tbridge-gram-theme">
