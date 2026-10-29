@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createTBridge,
   connectWithUi,
@@ -7,7 +7,7 @@ import {
   type ConnectionStatus,
 } from 'tbridge';
 
-const manifestURL = 'https://advanceddev.github.io/tbridge-demo-app/tbridge-manifest.json'
+const manifestURL = 'https://advanceddev.github.io/tbridge-demo-app/tbridge-manifest.json';
 
 type Locale = 'en' | 'ru';
 type Theme = 'dark' | 'light';
@@ -35,18 +35,32 @@ const THEME_LABELS: Record<Theme, string> = {
   light: 'Light',
 };
 
+// Валидация TON адреса (bounceable / non-bounceable, 48 символов)
+const isValidTonAddress = (address: string): boolean => {
+  return /^(0|[UEkQ])[a-zA-Z0-9_-]{47}$/.test(address.trim());
+};
+
+const DEFAULT_ADDRESSES: Record<Network, string> = {
+  mainnet: 'UQD0UzzvZ5dgtcLVPBHMnTibhMrzLvihBIwUZFp_EBqEucjB',
+  testnet: '0QB8YkmJ4Vzdg3H_4Dq30JVWuzwKPvuN0-efocDZPP30B-sc',
+};
+
 export default function TBridgeSmokePage() {
   const bridgeRef = useRef<TBridge | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>({
-    status: 'disconnected',
-  });
+  const [status, setStatus] = useState<ConnectionStatus>({ status: 'disconnected' });
   const [logs, setLogs] = useState<Array<{ time: string; msg: string }>>([]);
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+  const [recipientAddress, setRecipientAddress] = useState<string>(DEFAULT_ADDRESSES[DEFAULT_CONFIG.network]);
 
   const push = useCallback((msg: string) => {
     const time = new Date().toISOString().slice(11, 19);
     setLogs((prev) => [{ time, msg }, ...prev].slice(0, 50));
   }, []);
+
+  // Синхронизация адреса при смене сети
+  useEffect(() => {
+    setRecipientAddress(DEFAULT_ADDRESSES[config.network]);
+  }, [config.network]);
 
   useEffect(() => {
     const bridge = createTBridge({
@@ -106,11 +120,22 @@ export default function TBridgeSmokePage() {
           });
         },
       });
-      push('✓ connected');
+      
+      // Адрес придет через statusChange event, но на всякий случай проверим здесь
+      push('✓ connecting...');
     } catch (e) {
       push(`✗ ${e instanceof Error ? e.message : String(e)}`);
     }
   }, [push, config.locale, config.theme]);
+
+  // Отдельный эффект для логирования успешного подключения с адресом
+  useEffect(() => {
+    if (status.status === 'connected' && status.account?.address) {
+      const addr = status.account.address;
+      const shortAddr = `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+      push(`✓ connected wallet: ${shortAddr}`);
+    }
+  }, [status, push]);
 
   const disconnect = useCallback(async () => {
     const bridge = bridgeRef.current;
@@ -126,16 +151,16 @@ export default function TBridgeSmokePage() {
 
   const sendTransaction = useCallback(async () => {
     const bridge = bridgeRef.current;
-    if (!bridge) return;
+    if (!bridge || !isValidTonAddress(recipientAddress)) return;
 
     try {
-      push('sending transaction...');
+      push(`sending 1 GRAM to ${recipientAddress.slice(0, 6)}...`);
       await bridge.sendTransaction({
         validUntil: Date.now() + 60_000,
         messages: [
           {
-            address: '0QB8YkmJ4Vzdg3H_4Dq30JVWuzwKPvuN0-efocDZPP30B-sc',
-            amount: '100000000',
+            address: recipientAddress,
+            amount: '100000000', // 0.1 GRAM in nanotons
           },
         ],
       });
@@ -143,23 +168,15 @@ export default function TBridgeSmokePage() {
     } catch (e) {
       push(`✗ ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [push]);
+  }, [push, recipientAddress]);
 
   const isConnected = status.status === 'connected';
   const isConnecting = status.status === 'connecting';
-
-  const address = useMemo(() => {
-    if (isConnected && status.account) {
-      const addr = status.account.address;
-      return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-    }
-    return null;
-  }, [isConnected, status]);
+  const isAddressValid = isValidTonAddress(recipientAddress);
 
   const updateConfig = <K extends keyof Config>(key: K, value: Config[K]) => {
     setConfig((prev) => {
       if (prev[key] === value) return prev;
-
       if (key === 'network') {
         setLogs((l) => [
           { time: new Date().toISOString().slice(11, 19), msg: `switching to ${value}` },
@@ -167,28 +184,50 @@ export default function TBridgeSmokePage() {
         ]);
         setStatus({ status: 'disconnected' });
       }
-
       return { ...prev, [key]: value };
     });
   };
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: demoCSS }} />
+    <div className="tbridge-gram-theme">
+      <style dangerouslySetInnerHTML={{ __html: gramDarkCSS }} />
       <div style={styles.container}>
+        
+        {/* Header & Links */}
         <div style={styles.header}>
           <h1 style={styles.title}>
             <span style={styles.logo}>⚡</span>
-            TBridge Demo App
+            TBridge
           </h1>
-          <p style={styles.subtitle}>Modern TON wallet connection library</p>
+          <p style={styles.subtitle}>Modern TON wallet connection library.</p>
+          
+          <div style={styles.linksRow}>
+            <span className="tbridge-link tbridge-link--soon">
+              NPMJS <span className="tbridge-soon-tag">// soon</span>
+            </span>
+            <span className="tbridge-divider">•</span>
+            <span className="tbridge-link tbridge-link--soon">
+              GITHUB <span className="tbridge-soon-tag">// soon</span>
+            </span>
+            <span className="tbridge-divider">•</span>
+            <a 
+              href="https://telegram.me/frntbck" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="tbridge-link tbridge-link--active"
+            >
+              TELEGRAM ↗
+            </a>
+          </div>
         </div>
 
         {/* Configuration panel */}
-        <div style={styles.card}>
+        <div className="tbridge-card">
           <div style={styles.cardHeader}>
             <span style={styles.cardTitle}>Configuration</span>
-            <span style={styles.cardHint}>Applied live</span>
+            <span className={`tbridge-badge tbridge-badge--${status.status}`}>
+              {status.status}
+            </span>
           </div>
 
           <div style={styles.configGrid}>
@@ -198,11 +237,10 @@ export default function TBridgeSmokePage() {
                 <select
                   value={config.network}
                   onChange={(e) => updateConfig('network', e.target.value as Network)}
-                  style={styles.select}
-                  className="tbridge-demo-select"
+                  className="tbridge-select"
                 >
-                  <option value="mainnet">🟢 Mainnet</option>
-                  <option value="testnet">🟠 Testnet</option>
+                  <option value="mainnet">Mainnet</option>
+                  <option value="testnet">Testnet</option>
                 </select>
                 <span style={styles.selectArrow}>▾</span>
               </div>
@@ -214,13 +252,10 @@ export default function TBridgeSmokePage() {
                 <select
                   value={config.locale}
                   onChange={(e) => updateConfig('locale', e.target.value as Locale)}
-                  style={styles.select}
-                  className="tbridge-demo-select"
+                  className="tbridge-select"
                 >
                   {(Object.keys(LOCALE_LABELS) as Locale[]).map((k) => (
-                    <option key={k} value={k}>
-                      {LOCALE_LABELS[k]}
-                    </option>
+                    <option key={k} value={k}>{LOCALE_LABELS[k]}</option>
                   ))}
                 </select>
                 <span style={styles.selectArrow}>▾</span>
@@ -233,106 +268,84 @@ export default function TBridgeSmokePage() {
                 <select
                   value={config.theme}
                   onChange={(e) => updateConfig('theme', e.target.value as Theme)}
-                  style={styles.select}
-                  className="tbridge-demo-select"
+                  className="tbridge-select"
                 >
                   {(Object.keys(THEME_LABELS) as Theme[]).map((k) => (
-                    <option key={k} value={k}>
-                      {THEME_LABELS[k]}
-                    </option>
+                    <option key={k} value={k}>{THEME_LABELS[k]}</option>
                   ))}
                 </select>
                 <span style={styles.selectArrow}>▾</span>
               </div>
             </label>
           </div>
-
-          <div style={styles.configMeta}>
-            <span style={styles.metaPill}>
-              <span style={styles.metaDot} data-network={config.network} />
-              {config.network}
-            </span>
-            <span style={styles.metaPill}>{config.locale.toUpperCase()}</span>
-            <span style={styles.metaPill}>{config.theme}</span>
-          </div>
         </div>
 
-        {/* Status card */}
-        <div style={styles.card}>
-          <div style={styles.statusHeader}>
-            <div style={styles.statusRow}>
-              <span style={styles.label}>Status</span>
-              <span
-                style={{
-                  ...styles.badge,
-                  ...styles[`badge_${status.status}` as keyof typeof styles],
-                }}
-              >
-                {status.status}
-              </span>
-            </div>
-
-            {isConnected && address && (
-              <div style={styles.addressRow}>
-                <span style={styles.label}>Address</span>
-                <code style={styles.address}>{address}</code>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div style={styles.actions}>
+        {/* Actions & Address Input */}
+        <div style={styles.actionsContainer}>
           {!isConnected && !isConnecting && (
             <button
               type="button"
               onClick={() => void connect()}
-              className="tbridge-demo-btn tbridge-demo-btn-primary"
+              className="tbridge-btn tbridge-btn--primary tbridge-btn--full"
             >
               Connect Wallet
             </button>
           )}
 
           {isConnecting && (
-            <button
-              type="button"
-              disabled
-              className="tbridge-demo-button tbridge-demo-button-disabled"
-            >
+            <button type="button" disabled className="tbridge-btn tbridge-btn--disabled tbridge-btn--full">
+              <span className="tbridge-spinner" />
               Connecting...
             </button>
           )}
 
           {isConnected && (
-            <>
-              <button
-                type="button"
-                onClick={() => void sendTransaction()}
-                className="tbridge-demo-button tbridge-demo-btn-secondary"
-              >
-                Send 0.1 GRAM
-              </button>
+            <div style={styles.connectedActions}>
+              <div style={styles.inputGroup}>
+                <label style={styles.fieldLabel}>Recipient Address</label>
+                <input
+                  type="text"
+                  value={recipientAddress}
+                  onChange={(e) => setRecipientAddress(e.target.value)}
+                  className={`tbridge-input ${!isAddressValid && recipientAddress.length > 0 ? 'tbridge-input--invalid' : ''}`}
+                  placeholder="Enter TON address"
+                  spellCheck={false}
+                />
+                {!isAddressValid && recipientAddress.length > 0 && (
+                  <span style={styles.validationMsg}>Invalid TON address format</span>
+                )}
+              </div>
 
-              <button
-                type="button"
-                onClick={() => void disconnect()}
-                className="tbridge-demo-button tbridge-demo-btn-danger"
-              >
-                Disconnect
-              </button>
-            </>
+              <div className="tbridge-button-row">
+                <button
+                  type="button"
+                  onClick={() => void sendTransaction()}
+                  disabled={!isAddressValid}
+                  className="tbridge-btn tbridge-btn--primary"
+                >
+                  Send 0.1 GRAM
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void disconnect()}
+                  className="tbridge-btn tbridge-btn--danger"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Logs */}
-        <div style={styles.logsCard}>
+        <div className="tbridge-card tbridge-card--logs">
           <div style={styles.logsHeader}>
             <span style={styles.logsTitle}>Activity Log</span>
             {logs.length > 0 && (
               <button
                 type="button"
                 onClick={() => setLogs([])}
-                className="tbridge-demo-clear"
+                className="tbridge-btn tbridge-btn--ghost"
               >
                 Clear
               </button>
@@ -344,9 +357,9 @@ export default function TBridgeSmokePage() {
               <div style={styles.emptyLogs}>No activity yet</div>
             ) : (
               logs.map((log, i) => (
-                <div key={`${log.time}-${i}`} style={styles.logEntry}>
-                  <span style={styles.logTime}>{log.time}</span>
-                  <span style={styles.logMsg}>{log.msg}</span>
+                <div key={`${log.time}-${i}`} className="tbridge-log-entry">
+                  <span className="tbridge-log-time">{log.time}</span>
+                  <span className="tbridge-log-msg">{log.msg}</span>
                 </div>
               ))
             )}
@@ -354,395 +367,391 @@ export default function TBridgeSmokePage() {
         </div>
 
         <div style={styles.footer}>
-          <p style={styles.footerText}>This demo uses TBridge</p>
+          <p style={styles.footerText}>Powered by TBridge • for TON Ecosystem with 💎</p>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
-const demoCSS = `
-.tbridge-demo-select {
+// ============================================================================
+// GRAM / GetGems Dark Theme CSS (Compact & Modern)
+// ============================================================================
+const gramDarkCSS = `
+.tbridge-gram-theme {
+  --bg-primary: #0B0E14;
+  --bg-secondary: #151921;
+  --bg-tertiary: #1E2330;
+  --bg-hover: #252B3B;
+  
+  --accent-primary: #0098EA;
+  --accent-hover: #0088D1;
+  --accent-glow: rgba(0, 152, 234, 0.2);
+  
+  --text-primary: #FFFFFF;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(0, 152, 234, 0.5);
+  --border-invalid: rgba(239, 68, 68, 0.5);
+  
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tbridge-gram-theme * { box-sizing: border-box; }
+
+.tbridge-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: border-color 0.2s ease;
+}
+
+.tbridge-card--logs {
+  background: var(--bg-primary);
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Badges */
+.tbridge-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tbridge-badge--disconnected { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+.tbridge-badge--connecting { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
+.tbridge-badge--connected { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
+
+/* Links Row */
+.tbridge-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+}
+.tbridge-link--active { color: var(--accent-primary); cursor: pointer; }
+.tbridge-link--active:hover { color: var(--accent-hover); text-decoration: underline; }
+.tbridge-link--soon { opacity: 0.5; }
+.tbridge-soon-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.tbridge-divider { color: var(--bg-hover); }
+
+/* Form Elements */
+.tbridge-select, .tbridge-input {
   width: 100%;
-  padding: 10px 32px 10px 12px;
-  font-size: 14px;
+  padding: 10px 36px 10px 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: #fafafa;
-  background: #27272a;
-  border: 1px solid #3f3f46;
-  border-radius: 8px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
   appearance: none;
-  -webkit-appearance: none;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: all 0.2s ease;
   outline: none;
   font-family: inherit;
 }
+.tbridge-input {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: text;
+}
+.tbridge-select:hover, .tbridge-input:hover { background: var(--bg-hover); border-color: rgba(255,255,255,0.15); }
+.tbridge-select:focus, .tbridge-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
+.tbridge-input--invalid { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important; }
 
-.tbridge-demo-select:hover {
-  border-color: #52525b;
-  background: #2f2f33;
+/* Button Row */
+.tbridge-button-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.tbridge-demo-select:focus {
-  border-color: #3b82f6;
-}
-
-.tbridge-demo-btn {
+.tbridge-button-row .tbridge-btn {
   flex: 1;
-  min-width: 200px;
-  padding: 14px 24px;
+  min-width: 0;
+}
+
+/* Responsive: mobile layout */
+@media (max-width: 640px) {
+  .tbridge-button-row {
+    flex-direction: column;
+  }
+  
+  .tbridge-button-row .tbridge-btn {
+    width: 100%;
+  }
+}
+
+/* Buttons */
+.tbridge-btn {
+  padding: 16px 20px;
   font-size: 15px;
   font-weight: 600;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
-
-.tbridge-demo-btn-primary {
-  color: #fff;
-  background: #18181b;
-  border: 2px solid #3f3f46;
+.tbridge-btn--full { width: 100%; }
+.tbridge-btn--primary {
+  color: #FFF;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #0077B5 100%);
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
-
-.tbridge-demo-btn-primary:hover {
-  background: #27272a;
-  border-color: #52525b;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+.tbridge-btn--primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px var(--accent-glow); filter: brightness(1.1); }
+.tbridge-btn--primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.tbridge-btn--danger {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
-
-.tbridge-demo-btn-primary:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+.tbridge-btn--danger:hover { background: rgba(239, 68, 68, 0.15); border-color: var(--danger); }
+.tbridge-btn--ghost {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  flex-shrink: 0;
+  width: auto;
 }
-
-.tbridge-demo-btn-secondary {
-  color: #fafafa;
-  background: #27272a;
-  border: 2px solid #3f3f46;
-}
-
-.tbridge-demo-btn-secondary:hover {
-  background: #3f3f46;
-  border-color: #52525b;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-}
-
-.tbridge-demo-btn-secondary:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.tbridge-demo-btn-danger {
-  color: #fff;
-  background: #dc2626;
-}
-
-.tbridge-demo-btn-danger:hover {
-  background: #ef4444;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(220, 38, 38, 0.3);
-}
-
-.tbridge-demo-btn-danger:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.2);
-}
-
-.tbridge-demo-btn-disabled {
-  color: #71717a;
-  background: #3f3f46;
+.tbridge-btn--ghost:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.tbridge-btn--disabled {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
   cursor: not-allowed;
 }
 
-.tbridge-demo-clear {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #a1a1aa;
-  background: transparent;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
+.tbridge-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top-color: var(--text-primary);
+  border-radius: 50%;
+  animation: tbridge-spin 0.8s linear infinite;
 }
+@keyframes tbridge-spin { to { transform: rotate(360deg); } }
 
-.tbridge-demo-clear:hover {
-  color: #fafafa;
-  background: #3f3f46;
-  border-color: #52525b;
+/* Logs */
+.tbridge-log-entry {
+  display: flex; gap: 16px;
+  padding: 8px 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border-default);
+  transition: background 0.15s ease;
 }
+.tbridge-log-entry:last-child { border-bottom: none; }
+.tbridge-log-entry:hover { background: var(--bg-secondary); }
+.tbridge-log-time { color: var(--text-muted); flex-shrink: 0; user-select: none; }
+.tbridge-log-msg { color: var(--text-secondary); word-break: break-all; }
+
+.tbridge-gram-theme ::-webkit-scrollbar { width: 6px; }
+.tbridge-gram-theme ::-webkit-scrollbar-track { background: transparent; }
+.tbridge-gram-theme ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
 `;
 
+// ============================================================================
+// Layout Styles
+// ============================================================================
 const styles = {
   container: {
     minHeight: '100vh',
-    padding: '40px 20px',
-    fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-    color: '#fafafa',
-  },
+    padding: '40px 16px',
+    maxWidth: '640px',
+    margin: '0 auto',
+  } as React.CSSProperties,
 
   header: {
-    maxWidth: 640,
-    margin: '0 auto 32px',
     textAlign: 'center' as const,
-  },
+    marginBottom: '32px',
+  } as React.CSSProperties,
 
   title: {
-    fontSize: 24,
-    fontWeight: 700,
+    fontSize: '28px',
+    fontWeight: 800,
     margin: '0 0 8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    color: '#fafafa',
-  },
+    gap: '10px',
+    letterSpacing: '-0.02em',
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #94A3B8 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  } as React.CSSProperties,
 
   logo: {
-    fontSize: 42,
-  },
+    fontSize: '32px',
+    WebkitTextFillColor: 'initial',
+    lineHeight: 1,
+  } as React.CSSProperties,
 
   subtitle: {
-    fontSize: 16,
-    color: '#a1a1aa',
+    fontSize: '14px',
+    color: 'var(--text-secondary)',
     margin: 0,
-  },
+    fontWeight: 400,
+  } as React.CSSProperties,
 
-  card: {
-    maxWidth: 640,
-    margin: '0 auto 24px',
-    background: '#27272a',
-    borderRadius: 16,
-    padding: 24,
-    border: '1px solid #3f3f46',
-  },
+  linksRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    marginTop: '16px',
+    fontSize: '12px',
+    fontWeight: 500,
+  } as React.CSSProperties,
 
   cardHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-  },
+    marginBottom: '16px',
+  } as React.CSSProperties,
 
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#fafafa',
-  },
-
-  cardHint: {
-    fontSize: 12,
-    color: '#a1a1aa',
-    padding: '4px 10px',
-    background: '#3f3f46',
-    borderRadius: 999,
-    fontWeight: 500,
-  },
+    fontSize: '14px',
+    fontWeight: 700,
+    color: 'var(--text-primary)',
+    letterSpacing: '-0.01em',
+  } as React.CSSProperties,
 
   configGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-    gap: 12,
-  },
+    gap: '12px',
+  } as React.CSSProperties,
 
   field: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 6,
-  },
+    gap: '6px',
+  } as React.CSSProperties,
 
   fieldLabel: {
-    fontSize: 12,
+    fontSize: '11px',
     fontWeight: 600,
-    color: '#a1a1aa',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-  },
+    letterSpacing: '0.06em',
+  } as React.CSSProperties,
 
   selectWrap: {
     position: 'relative' as const,
     display: 'flex',
     alignItems: 'center',
-  },
-
-  select: {},
+  } as React.CSSProperties,
 
   selectArrow: {
     position: 'absolute' as const,
-    right: 12,
-    color: '#a1a1aa',
+    right: '12px',
+    color: 'var(--text-muted)',
     pointerEvents: 'none' as const,
-    fontSize: 12,
-  },
+    fontSize: '10px',
+  } as React.CSSProperties,
 
-  configMeta: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: 8,
-    marginTop: 16,
-    paddingTop: 16,
-    borderTop: '1px solid #3f3f46',
-  },
+  actionsContainer: {
+    marginBottom: '20px',
+  } as React.CSSProperties,
 
-  metaPill: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '4px 10px',
-    background: '#3f3f46',
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 500,
-    color: '#a1a1aa',
-    fontFamily: 'ui-monospace, "Cascadia Code", monospace',
-  },
-
-  metaDot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: '#71717a',
-  },
-
-  statusHeader: {
+  connectedActions: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 12,
-  },
+    gap: '16px',
+  } as React.CSSProperties,
 
-  statusRow: {
+  inputGroup: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    flexDirection: 'column' as const,
+    gap: '6px',
+  } as React.CSSProperties,
 
-  label: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#a1a1aa',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-  },
+  validationMsg: {
+    fontSize: '11px',
+    color: 'var(--danger)',
+    fontWeight: 500,
+    marginTop: '2px',
+  } as React.CSSProperties,
 
-  badge: {
-    padding: '6px 12px',
-    borderRadius: 999,
-    fontSize: 13,
-    fontWeight: 600,
-    textTransform: 'uppercase' as const,
-  },
-
-  badge_disconnected: {
-    background: 'rgba(220, 38, 38, 0.2)',
-    color: '#f87171',
-  },
-
-  badge_connecting: {
-    background: 'rgba(217, 119, 6, 0.2)',
-    color: '#fbbf24',
-  },
-
-  badge_connected: {
-    background: 'rgba(22, 163, 74, 0.2)',
-    color: '#4ade80',
-  },
-
-  addressRow: {
+  buttonRow: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    borderTop: '1px solid #3f3f46',
-  },
-
-  address: {
-    fontFamily: 'ui-monospace, "Cascadia Code", monospace',
-    fontSize: 14,
-    color: '#fafafa',
-    background: '#3f3f46',
-    padding: '4px 8px',
-    borderRadius: 6,
-  },
-
-  actions: {
-    maxWidth: 640,
-    margin: '0 auto 24px',
-    display: 'flex',
-    gap: 12,
-    flexWrap: 'wrap' as const,
-  },
-
-  logsCard: {
-    maxWidth: 640,
-    margin: '0 auto 24px',
-    background: '#18181b',
-    borderRadius: 16,
-    overflow: 'hidden',
-    border: '1px solid #27272a',
-  },
+    gap: '12px',
+  } as React.CSSProperties,
 
   logsHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px 20px',
-    background: '#27272a',
-    borderBottom: '1px solid #3f3f46',
-  },
+    padding: '12px 20px',
+    background: 'var(--bg-secondary)',
+    borderBottom: '1px solid var(--border-default)',
+  } as React.CSSProperties,
 
   logsTitle: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#fafafa',
-  },
+    fontSize: '11px',
+    fontWeight: 700,
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em',
+  } as React.CSSProperties,
 
   logsContainer: {
-    maxHeight: 400,
-    overflow: 'auto',
-    padding: '12px 0',
-  },
+    maxHeight: '320px',
+    overflowY: 'auto' as const,
+    padding: '8px 0',
+  } as React.CSSProperties,
 
   emptyLogs: {
     padding: '32px 20px',
     textAlign: 'center' as const,
-    color: '#71717a',
-    fontSize: 14,
-  },
-
-  logEntry: {
-    display: 'flex',
-    gap: 12,
-    padding: '8px 20px',
-    fontFamily: 'ui-monospace, "Cascadia Code", monospace',
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-
-  logTime: {
-    color: '#71717a',
-    flexShrink: 0,
-  },
-
-  logMsg: {
-    color: '#a1ff9f',
-    wordBreak: 'break-word' as const,
-  },
+    color: 'var(--text-muted)',
+    fontSize: '13px',
+  } as React.CSSProperties,
 
   footer: {
-    maxWidth: 640,
-    margin: '0 auto',
     textAlign: 'center' as const,
-  },
+    marginTop: '40px',
+  } as React.CSSProperties,
 
   footerText: {
-    fontSize: 13,
-    color: '#71717a',
+    fontSize: '12px',
+    color: 'var(--text-muted)',
     margin: 0,
-  },
+    fontWeight: 500,
+  } as React.CSSProperties,
 } as const;
