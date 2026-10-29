@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createTBridge,
   connectWithUi,
+  NaclCryptoProvider,
   type TBridge,
   type ConnectionStatus,
 } from 'tbridge';
@@ -50,6 +51,7 @@ export default function TBridgeSmokePage() {
   useEffect(() => {
     const bridge = createTBridge({
       manifestUrl: manifestURL,
+      crypto: new NaclCryptoProvider(),
       network: config.network,
       debug: true,
       allowInsecureManifest: import.meta.env.DEV,
