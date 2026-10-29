@@ -6,7 +6,7 @@ import {
   type ConnectionStatus,
 } from 'tbridge';
 
-const manifestURL = new URL('tbridge-manifest.json', location.href).toString();
+const manifestURL = 'https://advanceddev.github.io/tbridge-demo-app/tbridge-manifest.json'
 
 type Locale = 'en' | 'ru';
 type Theme = 'dark' | 'light';
