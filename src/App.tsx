@@ -128,7 +128,9 @@ export default function TBridgeSmokePage() {
         
         <div style={styles.header}>
           <h1 style={styles.title}>
-            <span style={styles.logo}>⚡</span>
+            <span style={styles.logo}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48" aria-hidden="true" focusable="false"><path d="M7 23 V13 C7 9.5 10.5 7.5 16 7.5 C21.5 7.5 25 9.5 25 13 V23 H22 V13.2 C22 11.2 19.5 10 16 10 C12.5 10 10 11.2 10 13.2 V23 H7 Z" fill="#0098EA"/><circle cx="16" cy="14.5" r="2.5" fill="#0098EA"/></svg>
+            </span>
             TBridge
           </h1>
           <p style={styles.subtitle}>Modern TON wallet connection library.</p>
@@ -536,7 +538,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '10px',
+    gap: '4px',
     letterSpacing: '-0.02em',
     background: 'linear-gradient(135deg, #FFFFFF 0%, #94A3B8 100%)',
     WebkitBackgroundClip: 'text',
@@ -547,6 +549,9 @@ const styles = {
     fontSize: '32px',
     WebkitTextFillColor: 'initial',
     lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   } as React.CSSProperties,
 
   subtitle: {
