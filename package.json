@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tbridge/sdk": "^0.3.7",
+    "@tbridge/sdk": "link:../TBridge",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tweetnacl": "^1.0.3"
