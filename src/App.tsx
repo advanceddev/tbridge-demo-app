@@ -105,7 +105,7 @@ export default function TBridgeSmokePage() {
     try {
       push(`sending 0.1 GRAM to ${recipientAddress.slice(0, 6)}...`);
       await hookSendTransaction({
-        validUntil: Date.now() + 60_000,
+        validUntil: Math.floor(Date.now() / 1000) + 300,
         messages: [
           {
             address: recipientAddress,
