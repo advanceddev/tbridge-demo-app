@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useTBridge, type UseTBridgeOptions } from './hooks/useTBridge';
-import { type ConnectionStatus } from 'tbridge';
+import { type ConnectionStatus } from '@tbridge/sdk';
 
 const manifestURL = 'https://advanceddev.github.io/tbridge-demo-app/tbridge-manifest.json';
 
@@ -134,15 +134,25 @@ export default function TBridgeSmokePage() {
             TBridge
           </h1>
           <p style={styles.subtitle}>Modern TON wallet connection library.</p>
-          
+
           <div style={styles.linksRow}>
-            <span className="tbridge-link tbridge-link--soon">
-              NPMJS <span className="tbridge-soon-tag">// soon</span>
-            </span>
+          <a 
+              href="https://www.npmjs.com/package/@tbridge/sdk" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="tbridge-link tbridge-link--active"
+            >
+              NPMJS ↗
+            </a>
             <span className="tbridge-divider">•</span>
-            <span className="tbridge-link tbridge-link--soon">
-              GITHUB <span className="tbridge-soon-tag">// soon</span>
-            </span>
+            <a 
+              href="https://github.com/advanceddev/tbridge-sdk" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="tbridge-link tbridge-link--active"
+            >
+              GITHUB ↗
+            </a>
             <span className="tbridge-divider">•</span>
             <a 
               href="https://telegram.me/frntbck" 

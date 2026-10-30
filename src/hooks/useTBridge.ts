@@ -6,7 +6,7 @@ import {
   type TBridge,
   type ConnectionStatus,
   type SendTransactionRequest,
-} from 'tbridge';
+} from '@tbridge/sdk';
 
 export interface UseTBridgeOptions {
   manifestUrl: string;
