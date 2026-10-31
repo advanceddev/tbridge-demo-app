@@ -48,7 +48,6 @@ export default function TBridgeSmokePage() {
     setLogs((prev) => [{ time, msg }, ...prev].slice(0, 50));
   }, []);
 
-
   const handleStatusChange = useCallback((status: ConnectionStatus) => {
     if (status.status === 'connected') {
       const addr = status.account.address;
@@ -316,54 +315,77 @@ export default function TBridgeSmokePage() {
 }
 
 // ============================================================================
-// Dark Theme CSS
+// TBridge Design System — Dark Theme
+// Same visual language as the TBridge widget:
+//   - TON brand blue with gradients and soft glows
+//   - Telegram-style spring easings (transform/opacity only = GPU compositing)
+//   - @supports(backdrop-filter, color-mix) for progressive enhancement
+//   - prefers-reduced-motion respected
 // ============================================================================
 const gramDarkCSS = `
 .tbridge-gram-theme {
-  --bg-primary: #0B0E14;
-  --bg-secondary: #151921;
-  --bg-tertiary: #1E2330;
-  --bg-hover: #252B3B;
-  
-  --accent-primary: #0098EA;
-  --accent-hover: #0088D1;
-  --accent-glow: rgba(0, 152, 234, 0.2);
-  
-  --text-primary: #FFFFFF;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  
+  --bg-primary: #131418;
+  --bg-secondary: #1c1e25;
+  --bg-tertiary: #21242b;
+  --bg-hover: #2a2d36;
+
+  --accent-primary: #0098ea;
+  --accent-strong: #16a5f0;
+  --accent-glow: rgba(0, 152, 234, 0.28);
+  --accent-glow-strong: rgba(0, 152, 234, 0.42);
+
+  --text-primary: #f5f6f8;
+  --text-secondary: #9ba1ad;
+  --text-muted: #6b7180;
+
   --border-default: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(0, 152, 234, 0.5);
-  --border-invalid: rgba(239, 68, 68, 0.5);
-  
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-focus: rgba(0, 152, 234, 0.55);
+  --border-invalid: rgba(255, 107, 107, 0.55);
+
+  --success: #4ade80;
+  --success-glow: rgba(74, 222, 128, 0.22);
+  --warning: #fbbf24;
+  --warning-glow: rgba(251, 191, 36, 0.22);
+  --danger: #ff6b6b;
+  --danger-glow: rgba(255, 107, 107, 0.22);
+
+  --shadow-card: 0 24px 60px -24px rgba(0, 0, 0, 0.55), 0 10px 24px -14px rgba(0, 0, 0, 0.35);
+  --shadow-input: 0 2px 8px -3px rgba(0, 0, 0, 0.35);
+  --shadow-btn-primary: 0 8px 22px -8px rgba(0, 152, 234, 0.55);
+  --shadow-btn-danger: 0 6px 18px -10px rgba(255, 107, 107, 0.4);
 
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tbridge-gram-theme ::selection {
+  background: var(--accent-glow);
 }
 
 .tbridge-gram-theme * { box-sizing: border-box; }
 
+/* ——— Cards ——— */
 .tbridge-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-default);
-  border-radius: 16px;
+  border-radius: 22px;
   padding: 20px;
   margin-bottom: 20px;
-  transition: border-color 0.2s ease;
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  transition: border-color 0.2s ease, box-shadow 0.25s ease;
 }
 
 .tbridge-card--logs {
   background: var(--bg-primary);
   padding: 0;
   overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
-/* Badges */
+/* ——— Badges ——— */
 .tbridge-badge {
   padding: 4px 10px;
   border-radius: 999px;
@@ -371,162 +393,282 @@ const gramDarkCSS = `
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  line-height: 1;
+  transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.tbridge-badge--disconnected { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
-.tbridge-badge--connecting { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); }
-.tbridge-badge--connected { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); }
+.tbridge-badge:hover { transform: scale(1.04); }
 
-/* Links Row */
+.tbridge-badge--disconnected {
+  background: rgba(255, 107, 107, 0.12);
+  color: var(--danger);
+  border: 1px solid rgba(255, 107, 107, 0.25);
+  box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.08);
+}
+.tbridge-badge--connecting {
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--warning);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.08);
+}
+.tbridge-badge--connected {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--success);
+  border: 1px solid rgba(74, 222, 128, 0.28);
+  box-shadow: 0 0 12px var(--success-glow);
+}
+
+/* ——— Links ——— */
 .tbridge-link {
   color: var(--text-muted);
   text-decoration: none;
-  transition: color 0.2s;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   cursor: default;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: color 0.18s ease, transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .tbridge-link--active { color: var(--accent-primary); cursor: pointer; }
-.tbridge-link--active:hover { color: var(--accent-hover); text-decoration: underline; }
-.tbridge-link--soon { opacity: 0.5; }
+.tbridge-link--active:hover {
+  color: var(--accent-strong);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.tbridge-link--soon { opacity: 0.45; }
 .tbridge-soon-tag {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10px;
   color: var(--text-muted);
   background: var(--bg-tertiary);
-  padding: 1px 4px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--border-default);
 }
-.tbridge-divider { color: var(--bg-hover); }
+.tbridge-divider { color: var(--bg-tertiary); user-select: none; }
 
-/* Form Elements */
-.tbridge-select, .tbridge-input {
+/* ——— Form elements ——— */
+.tbridge-select,
+.tbridge-input {
   width: 100%;
-  padding: 10px 36px 10px 14px;
+  padding: 11px 36px 11px 14px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-default);
-  border-radius: 10px;
+  border-radius: 12px;
   appearance: none;
   cursor: pointer;
-  transition: all 0.2s ease;
   outline: none;
   font-family: inherit;
+  box-shadow: var(--shadow-input), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 .tbridge-input {
   font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
   font-size: 12px;
   letter-spacing: 0.02em;
   cursor: text;
 }
-.tbridge-select:hover, .tbridge-input:hover { background: var(--bg-hover); border-color: rgba(255,255,255,0.15); }
-.tbridge-select:focus, .tbridge-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
-.tbridge-input--invalid { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important; }
 
-/* Button Row */
+.tbridge-select:hover,
+.tbridge-input:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.tbridge-select:focus,
+.tbridge-input:focus {
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-input);
+}
+
+.tbridge-input--invalid {
+  border-color: var(--border-invalid) !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.18), var(--shadow-input) !important;
+  background: rgba(255, 107, 107, 0.04);
+}
+
+/* ——— Button row (responsive) ——— */
 .tbridge-button-row {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
-
 .tbridge-button-row .tbridge-btn {
   flex: 1;
   min-width: 0;
 }
-
-/* Responsive: mobile layout */
 @media (max-width: 640px) {
-  .tbridge-button-row {
-    flex-direction: column;
-  }
-  
-  .tbridge-button-row .tbridge-btn {
-    width: 100%;
-  }
+  .tbridge-button-row { flex-direction: column; }
+  .tbridge-button-row .tbridge-btn { width: 100%; }
 }
 
-/* Buttons */
+/* ——— Buttons ——— */
 .tbridge-btn {
-  padding: 16px 20px;
+  padding: 14px 22px;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: 0.01em;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition:
+    filter 0.15s ease,
+    opacity 0.15s ease,
+    box-shadow 0.22s ease,
+    transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 .tbridge-btn--full { width: 100%; }
+
 .tbridge-btn--primary {
-  color: #FFF;
-  background: linear-gradient(135deg, var(--accent-primary) 0%, #0077B5 100%);
-  box-shadow: 0 4px 12px var(--accent-glow);
+  color: #fff;
+  background: linear-gradient(135deg, #2cb2f5 0%, #0098ea 52%, #0082cf 100%);
+  box-shadow: var(--shadow-btn-primary), inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
-.tbridge-btn--primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px var(--accent-glow); filter: brightness(1.1); }
-.tbridge-btn--primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.tbridge-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -10px rgba(0, 152, 234, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.tbridge-btn--primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+.tbridge-btn--primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  filter: grayscale(0.2);
+}
+.tbridge-btn--primary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-btn-primary), 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+}
+
 .tbridge-btn--danger {
   color: var(--danger);
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
-.tbridge-btn--danger:hover { background: rgba(239, 68, 68, 0.15); border-color: var(--danger); }
+.tbridge-btn--danger:hover {
+  background: rgba(255, 107, 107, 0.16);
+  border-color: var(--danger);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-btn-danger);
+}
+.tbridge-btn--danger:active { transform: translateY(0) scale(0.985); }
+.tbridge-btn--danger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--danger);
+}
+
 .tbridge-btn--ghost {
-  padding: 4px 10px;
+  padding: 6px 12px;
   font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: 999px;
   flex-shrink: 0;
   width: auto;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.tbridge-btn--ghost:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.tbridge-btn--ghost:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-color: var(--border-strong);
+}
+.tbridge-btn--ghost:active { transform: scale(0.94); }
+
 .tbridge-btn--disabled {
   color: var(--text-muted);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-default);
   cursor: not-allowed;
+  box-shadow: none;
 }
 
+/* ——— Spinner ——— */
 .tbridge-spinner {
-  width: 14px; height: 14px;
-  border: 2px solid rgba(255,255,255,0.1);
-  border-top-color: var(--text-primary);
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  border-top-color: var(--accent-strong);
   border-radius: 50%;
-  animation: tbridge-spin 0.8s linear infinite;
+  animation: tbridge-spin 0.7s linear infinite;
 }
 @keyframes tbridge-spin { to { transform: rotate(360deg); } }
 
-/* Logs */
+/* ——— Logs ——— */
 .tbridge-log-entry {
-  display: flex; gap: 16px;
-  padding: 8px 20px;
-  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  gap: 16px;
+  padding: 9px 20px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
   border-bottom: 1px solid var(--border-default);
-  transition: background 0.15s ease;
+  transition: background 0.18s ease;
 }
 .tbridge-log-entry:last-child { border-bottom: none; }
 .tbridge-log-entry:hover { background: var(--bg-secondary); }
-.tbridge-log-time { color: var(--text-muted); flex-shrink: 0; user-select: none; }
-.tbridge-log-msg { color: var(--text-secondary); word-break: break-all; }
+.tbridge-log-time {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.tbridge-log-msg {
+  color: var(--text-secondary);
+  word-break: break-all;
+}
 
-.tbridge-gram-theme ::-webkit-scrollbar { width: 6px; }
+/* Scrollbar */
+.tbridge-gram-theme ::-webkit-scrollbar { width: 6px; height: 6px; }
 .tbridge-gram-theme ::-webkit-scrollbar-track { background: transparent; }
-.tbridge-gram-theme ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
+.tbridge-gram-theme ::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+.tbridge-gram-theme ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+
+/* ——— Accessibility: prefers-reduced-motion ——— */
+@media (prefers-reduced-motion: reduce) {
+  .tbridge-gram-theme *,
+  .tbridge-gram-theme *::before,
+  .tbridge-gram-theme *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
 `;
 
 // ============================================================================
-// Layout Styles
+// Layout Styles (unchanged)
 // ============================================================================
 const styles = {
   container: {
